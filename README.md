@@ -162,6 +162,7 @@ C'est ici que toute la configuration du script est définie. Soyez **extrêmemen
 
 ## Améliorations Futures Potentielles (To-Do)
 
+*   [ ] Gerer les "child records" exemple liste liée
 *   [ ] Améliorer la gestion des erreurs (notifications).
 *   [ ] Option pour envoyer par email.
 *   [ ] Gérer des remplacements plus complexes.
