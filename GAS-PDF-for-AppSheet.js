@@ -171,12 +171,17 @@ function fetchDataFromAppSheetAPI(appId, accessKey, tableName, uniqueIdColumnNam
     Logger.log(`URL API: ${apiUrl}`);
     
     // Construction du corps de la requête avec filtre sur l'ID unique
+    // Ajout de MaxRecords=1 pour s'assurer d'avoir une réponse même si la requête filtrée échoue
     const requestBody = {
         Action: "Find",
         Properties: {
-            Filter: `${uniqueIdColumnName} = '${uniqueId}'`
+            Filter: `${uniqueIdColumnName} = '${uniqueId}'`,
+            MaxRecords: 10
         }
     };
+    
+    // Afficher la requête pour le débogage
+    Logger.log(`Requête API: ${JSON.stringify(requestBody)}`);
     
     // Configuration de la requête HTTP
     const options = {
@@ -205,22 +210,41 @@ function fetchDataFromAppSheetAPI(appId, accessKey, tableName, uniqueIdColumnNam
             throw new Error(`Erreur API AppSheet (${responseCode}): ${responseText}`);
         }
         
-        // Parsing de la réponse JSON
-        const responseData = JSON.parse(responseText);
-        Logger.log(`Réponse API AppSheet parsée: ${JSON.stringify(responseData).substring(0, 200)}...`);
+        // Vérification que la réponse n'est pas vide
+        if (!responseText || responseText.trim() === '') {
+            Logger.log(`Réponse API AppSheet vide (content-length: 0). Impossible de récupérer des données.`);
+            throw new Error('Réponse API AppSheet vide. Vérifiez les paramètres de la requête et les permissions API.');
+        }
         
-        // Extraction des données de l'enregistrement
-        let recordData;
-        if (Array.isArray(responseData)) {
-            // Format tableau direct
-            recordData = responseData.length > 0 ? responseData[0] : null;
-        } else if (responseData.Rows && Array.isArray(responseData.Rows)) {
-            // Format avec Rows et Properties
-            recordData = responseData.Rows.length > 0 ? responseData.Rows[0] : null;
-        } else {
-            // Format non reconnu
-            Logger.log(`Format de réponse API non reconnu: ${responseText.substring(0, 200)}...`);
-            throw new Error('Format de réponse API AppSheet non reconnu');
+        // Affichage du début de la réponse brute pour le débogage
+        Logger.log(`Réponse brute (début): ${responseText.substring(0, Math.min(responseText.length, 200))}...`);
+        
+        // Déclaration en dehors du bloc try
+        let responseData;
+        let recordData = null;
+        
+        try {
+            // Parsing de la réponse JSON
+            responseData = JSON.parse(responseText);
+            Logger.log(`Réponse API AppSheet parsée: ${JSON.stringify(responseData).substring(0, 200)}...`);
+            
+            // Extraction des données de l'enregistrement
+            if (Array.isArray(responseData)) {
+                // Format tableau direct
+                recordData = responseData.length > 0 ? responseData[0] : null;
+            } else if (responseData.Rows && Array.isArray(responseData.Rows)) {
+                // Format avec Rows et Properties
+                recordData = responseData.Rows.length > 0 ? responseData.Rows[0] : null;
+            } else {
+                // Format non reconnu
+                Logger.log(`Format de réponse API non reconnu: ${responseText.substring(0, 200)}...`);
+                throw new Error('Format de réponse API AppSheet non reconnu');
+            }
+        } catch (parseError) {
+            // Erreur lors du parsing JSON
+            Logger.log(`Erreur de parsing JSON: ${parseError.message}`);
+            Logger.log(`Réponse brute complète: ${responseText}`);
+            throw new Error(`Erreur de parsing de la réponse API: ${parseError.message}`);
         }
         
         // Vérification qu'un enregistrement a été trouvé
