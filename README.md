@@ -1,4 +1,4 @@
-# Générateur PDF Personnalisé pour AppSheet via Google Apps Script (v3 - Paramétré & Autonome)
+# Générateur PDF Personnalisé pour AppSheet via Google Apps Script (v3.5 - Paramétré & Autonome avec API AppSheet)
 
 Ce projet contient un script Google Apps Script **autonome (standalone)** et **générique** conçu pour être déclenché depuis une application AppSheet. Son objectif est de générer des fichiers PDF personnalisés en utilisant un modèle Google Docs et les données d'une ligne spécifique d'une feuille Google Sheets liée à AppSheet.
 
@@ -263,3 +263,73 @@ Pour appeler cette fonction depuis AppSheet, configurez un Bot avec les argument
 - Stockez la clé d'accès API de manière sécurisée.
 - Les noms des colonnes doivent correspondre exactement avec ceux d'AppSheet.
 - Les placeholders dans le modèle Google Docs doivent correspondre aux noms des colonnes dans AppSheet.
+
+## Comment tester le bon fonctionnement de `generatePdfFromTemplateAPI_AppSheetUse()`
+
+Pour vérifier que la fonction API AppSheet fonctionne correctement, suivez ces étapes :
+
+### 1. Préparation des éléments nécessaires
+
+1. **Créez un modèle Google Docs** avec des placeholders correspondant à vos colonnes AppSheet.
+2. **Créez un dossier Google Drive** pour les PDF générés.
+3. **Activez l'API AppSheet** dans votre application et générez une clé d'accès.
+4. **Notez l'ID unique** d'un enregistrement existant dans votre table AppSheet.
+
+### 2. Test direct dans l'éditeur de script
+
+1. **Ouvrez l'éditeur de script** Google Apps Script.
+2. **Créez une fonction de test** en ajoutant le code suivant à la fin de votre script :
+
+```javascript
+function testAppSheetAPIFunction() {
+  const uniqueId = "ID_ENREGISTREMENT_EXISTANT"; // Remplacez par un ID réel
+  const appsheetAppId = "VOTRE_ID_APP_APPSHEET";
+  const appsheetAccessKey = "VOTRE_CLE_ACCES_API";
+  const tableName = "NOM_DE_VOTRE_TABLE";
+  const templateDocId = "ID_DE_VOTRE_MODELE_DOC";
+  const destinationFolderId = "ID_DE_VOTRE_DOSSIER_DRIVE";
+  const uniqueIdColumnName = "NOM_COLONNE_ID_UNIQUE";
+  const pdfFilenameTemplate = "Test-{{NomColonne}}.pdf"; // Adaptez selon vos colonnes
+  const deleteTempDocStr = "false";
+  
+  try {
+    const result = generatePdfFromTemplateAPI_AppSheetUse(
+      uniqueId,
+      appsheetAppId,
+      appsheetAccessKey,
+      tableName,
+      templateDocId,
+      destinationFolderId,
+      uniqueIdColumnName,
+      pdfFilenameTemplate,
+      deleteTempDocStr
+    );
+    
+    Logger.log("PDF généré avec succès. Nom du fichier : " + result);
+    return result;
+  } catch (error) {
+    Logger.log("ERREUR : " + error.message);
+    throw error;
+  }
+}
+```
+
+3. **Exécutez cette fonction de test** en sélectionnant "testAppSheetAPIFunction" dans le menu déroulant, puis cliquez sur le bouton d'exécution (triangle).
+4. **Consultez les journaux d'exécution** : Menu > Exécution > Journaux pour voir les détails de l'exécution.
+
+### 3. Vérification des résultats
+
+1. **Vérifiez le dossier Google Drive** : Un nouveau PDF devrait apparaître.
+2. **Ouvrez le PDF généré** et vérifiez que :
+   - Tous les placeholders ont été correctement remplacés
+   - Le formatage du document est préservé
+   - Le nom du fichier correspond au modèle spécifié
+
+### 4. Résolution des problèmes courants
+
+- **Erreur d'authentification API** : Vérifiez que la clé d'accès API est correcte et active.
+- **Données manquantes** : Assurez-vous que l'enregistrement sélectionné contient toutes les données nécessaires.
+- **Erreur de formatage** : Vérifiez que les noms des colonnes dans le modèle correspondent exactement aux noms dans AppSheet (majuscules, espaces, etc.).
+- **Erreur "Action not allowed"** : Vérifiez que l'API est bien activée et que les paramètres de sécurité sont corrects.
+
+Si les tests sont concluants, vous pouvez alors configurer un Bot AppSheet pour utiliser cette fonction dans votre application.
