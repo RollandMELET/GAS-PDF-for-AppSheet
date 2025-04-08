@@ -1,0 +1,51 @@
+{
+  "mcpServers": {
+    "local-appscript-mcp": {
+      "command": "node",
+      "args": [
+        "/Users/rollandmelet/Développement/Projets/mcp-google-apps-script/src/server.js"
+      ],
+      "env": {},
+      "disabled": false,
+      "autoApprove": []
+    }
+  },
+  "commands": [
+    {
+      "name": "syncAppScript",
+      "description": "Synchronise les fichiers locaux avec Google Apps Script",
+      "endpoint": "http://localhost:3000/api/sync/push",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "projectPath": "/Users/rollandmelet/Développement/Projets/GAS-PDF-for-AppSheet"
+      }
+    },
+    {
+      "name": "pullAppScript",
+      "description": "Récupère les modifications depuis Google Apps Script",
+      "endpoint": "http://localhost:3000/api/sync/pull",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "projectPath": "/Users/rollandmelet/Développement/Projets/GAS-PDF-for-AppSheet"
+      }
+    },
+    {
+      "name": "watchAppScript",
+      "description": "Démarre la surveillance automatique des fichiers",
+      "endpoint": "http://localhost:3000/api/sync/start",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "projectPath": "/Users/rollandmelet/Développement/Projets/GAS-PDF-for-AppSheet"
+      }
+    }
+  ]
+}

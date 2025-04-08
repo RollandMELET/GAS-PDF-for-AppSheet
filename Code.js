@@ -170,25 +170,15 @@ function fetchDataFromAppSheetAPI(appId, accessKey, tableName, uniqueIdColumnNam
     const apiUrl = `https://api.appsheet.com/api/v2/apps/${appId}/tables/${tableName}/Action`;
     Logger.log(`URL API: ${apiUrl}`);
     
-    // Construction du corps de la requête plus détaillé
+    // Construction du corps de la requête avec filtre sur l'ID unique
+    // Ajout de MaxRecords=1 pour s'assurer d'avoir une réponse même si la requête filtrée échoue
     const requestBody = {
         Action: "Find",
         Properties: {
-            MaxRecords: 10,
-            Select: ["*"], // Demander explicitement toutes les colonnes
-            Locale: "fr-FR",
-            RequestTimeOut: 30
+            Filter: `${uniqueIdColumnName} = '${uniqueId}'`,
+            MaxRecords: 10
         }
     };
-    
-    // Ajout du filtre seulement si on a une colonne et une valeur
-    if (uniqueIdColumnName && uniqueIdColumnName.trim() !== '' && 
-        uniqueId && uniqueId.trim() !== '') {
-        requestBody.Properties.Filter = `${uniqueIdColumnName} = '${uniqueId}'`;
-    } else {
-        // Si pas de filtre, limiter à 1 enregistrement pour tester la connexion
-        requestBody.Properties.MaxRecords = 1;
-    }
     
     // Afficher la requête pour le débogage
     Logger.log(`Requête API: ${JSON.stringify(requestBody)}`);
@@ -220,42 +210,10 @@ function fetchDataFromAppSheetAPI(appId, accessKey, tableName, uniqueIdColumnNam
             throw new Error(`Erreur API AppSheet (${responseCode}): ${responseText}`);
         }
         
-        // Vérification plus robuste de la réponse
-        if (!responseText || responseText.trim() === '' || responseText === '[]' || responseText === '{}') {
-            Logger.log(`Réponse API AppSheet vide ou invalide (content-length: ${responseText.length}). Détails: ${responseText}`);
-            
-            // Tester une requête plus simple pour diagnostiquer le problème
-            const testUrl = `https://api.appsheet.com/api/v2/apps/${appId}/tables/${tableName}/Action`;
-            const testOptions = {
-                method: 'post',
-                contentType: 'application/json',
-                headers: {
-                    'ApplicationAccessKey': accessKey
-                },
-                payload: JSON.stringify({
-                    Action: "Get",
-                    Properties: {
-                        Select: ["*"],
-                        MaxRecords: 1
-                    }
-                }),
-                muteHttpExceptions: true
-            };
-            
-            try {
-                const testResponse = UrlFetchApp.fetch(testUrl, testOptions);
-                const testText = testResponse.getContentText();
-                Logger.log(`Test API simple - Code: ${testResponse.getResponseCode()}, Réponse: ${testText}`);
-                
-                if (!testText || testText.trim() === '') {
-                    throw new Error('La requête test simple a également retourné une réponse vide. Vérifiez les permissions API.');
-                }
-            } catch (testError) {
-                Logger.log(`ERREUR lors du test API simple: ${testError.message}`);
-                throw new Error(`L'API AppSheet retourne des réponses vides. Vérifiez: 1) La clé API est valide 2) L'application a bien la table '${tableName}' 3) La clé API a les permissions 'Read' sur cette table. Détails: ${testError.message}`);
-            }
-            
-            throw new Error('Réponse API AppSheet vide malgré requête test réussie. Structure de données potentiellement différente.');
+        // Vérification que la réponse n'est pas vide
+        if (!responseText || responseText.trim() === '') {
+            Logger.log(`Réponse API AppSheet vide (content-length: 0). Impossible de récupérer des données.`);
+            throw new Error('Réponse API AppSheet vide. Vérifiez les paramètres de la requête et les permissions API.');
         }
         
         // Affichage du début de la réponse brute pour le débogage

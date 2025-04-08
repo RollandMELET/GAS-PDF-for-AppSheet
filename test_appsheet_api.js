@@ -61,12 +61,122 @@ function testFetchDataOnly() {
     );
     
     Logger.log("TEST RÉUSSI! Données récupérées : " + JSON.stringify(recordData, null, 2));
+    
+    // Vérification supplémentaire des données
+    if (!recordData || !recordData.data) {
+      throw new Error("Données récupérées mais format invalide");
+    }
+    
+    Logger.log("Structure des données:");
+    Logger.log(`- Nombre de champs: ${Object.keys(recordData.data).length}`);
+    Logger.log(`- Exemple de valeurs: ${JSON.stringify(Object.entries(recordData.data).slice(0, 5))}`);
+    
     return recordData;
   } catch (error) {
     Logger.log("TEST ÉCHOUÉ! Erreur récupération données : " + error.message);
     if (error.stack) {
       Logger.log("Stack trace : " + error.stack);
     }
+    
+    // Tentative de diagnostic supplémentaire
+    try {
+      Logger.log("Tentative de requête test simple...");
+      const testUrl = `https://api.appsheet.com/api/v2/apps/${appsheetAppId}/tables/${tableName}/Action`;
+      const testOptions = {
+        method: 'post',
+        contentType: 'application/json',
+        headers: {
+          'ApplicationAccessKey': appsheetAccessKey
+        },
+        payload: JSON.stringify({
+          Action: "Get",
+          Properties: {
+            Select: ["*"],
+            MaxRecords: 1
+          }
+        }),
+        muteHttpExceptions: true
+      };
+      
+      const testResponse = UrlFetchApp.fetch(testUrl, testOptions);
+      Logger.log(`Test API simple - Code: ${testResponse.getResponseCode()}, Réponse: ${testResponse.getContentText()}`);
+    } catch (testError) {
+      Logger.log(`ERREUR lors du test API simple: ${testError.message}`);
+    }
+    
+    throw error;
+  }
+}
+
+// Fonction pour lister tous les IDs disponibles dans la table PAC
+function testListAllPACIDs() {
+  const appsheetAppId = "63a906af-52b2-4d40-884f-18e95ca79c45";
+  const appsheetAccessKey = "V2-nvnfP-sBEaK-EGTnO-zkXL5-pe6R9-dRm6i-F3djI-spKMq";
+  const tableName = "PAC";
+  
+  Logger.log("Test de récupération de tous les IDs de la table PAC");
+  
+  try {
+    const response = fetchDataFromAppSheetAPI(
+      appsheetAppId,
+      appsheetAccessKey,
+      tableName,
+      "", // Pas de filtre sur la colonne ID
+      ""  // Pas de valeur spécifique
+    );
+    
+    // Vérification du format de réponse
+    if (!response || !response.data) {
+      throw new Error("Format de réponse inattendu");
+    }
+    
+    // Pour une requête sans filtre, nous attendons un tableau d'objets
+    let allIDs = [];
+    if (Array.isArray(response.data)) {
+      allIDs = response.data.map(item => item.PAC_ID);
+    } else if (typeof response.data === 'object') {
+      // Si c'est un seul objet, nous l'ajoutons quand même
+      if (response.data.PAC_ID) {
+        allIDs = [response.data.PAC_ID];
+      }
+    }
+    
+    Logger.log("IDs disponibles dans la table PAC: " + JSON.stringify(allIDs, null, 2));
+    Logger.log(`Nombre d'IDs trouvés: ${allIDs.length}`);
+    
+    return allIDs;
+  } catch (error) {
+    Logger.log("TEST ÉCHOUÉ! Erreur récupération IDs : " + error.message);
+    if (error.stack) {
+      Logger.log("Stack trace : " + error.stack);
+    }
+    
+    // Tentative de diagnostic
+    Logger.log("Tentative de requête test simple...");
+    try {
+      const testUrl = `https://api.appsheet.com/api/v2/apps/${appsheetAppId}/tables/${tableName}/Action`;
+      const testOptions = {
+        method: 'post',
+        contentType: 'application/json',
+        headers: {
+          'ApplicationAccessKey': appsheetAccessKey
+        },
+        payload: JSON.stringify({
+          Action: "Find",
+          Properties: {
+            Select: ["PAC_ID"],
+            MaxRecords: 10
+          }
+        }),
+        muteHttpExceptions: true
+      };
+      
+      const testResponse = UrlFetchApp.fetch(testUrl, testOptions);
+      Logger.log(`Test API simple - Code: ${testResponse.getResponseCode()}, Réponse: ${testResponse.getContentText()}`);
+    } catch (testError) {
+      Logger.log(`ERREUR lors du test API simple: ${testError.message}`);
+    }
+    
     throw error;
   }
 }
