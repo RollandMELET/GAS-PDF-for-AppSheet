@@ -6,6 +6,14 @@ Il a été créé pour surmonter les limitations de la génération PDF native d
 
 **Dépôt privé destiné au suivi des évolutions et des demandes.**
 
+## Versions disponibles
+
+### Fonction principale : `generatePdfFromTemplate`
+Génère des PDF à partir d'un modèle Google Docs et des données extraites d'un Google Sheet.
+
+### Nouvelle fonction : `generatePdfFromTemplateAPI_AppSheetUse`
+Génère des PDF à partir d'un modèle Google Docs et des données récupérées via l'API AppSheet.
+
 ## Problème Résolu
 
 La génération de PDF native dans AppSheet offre peu de contrôle sur la mise en page fine. Cette solution permet d'utiliser toute la puissance de mise en page de Google Docs comme base pour les PDF, avec une configuration flexible définie directement dans AppSheet.
@@ -167,3 +175,91 @@ C'est ici que toute la configuration du script est définie. Soyez **extrêmemen
 *   [ ] Option pour envoyer par email.
 *   [ ] Gérer des remplacements plus complexes.
 *   [ ] Créer une feuille de configuration dans Google Sheets pour stocker les ID (modèle, dossier, fichier Sheet) et le template de nom, puis lire cette feuille depuis AppSheet pour simplifier la configuration de l'appel au script (passer moins d'arguments fixes).
+
+## Documentation de la fonction API AppSheet
+
+### Utilisation de `generatePdfFromTemplateAPI_AppSheetUse`
+
+La fonction `generatePdfFromTemplateAPI_AppSheetUse` permet de générer des PDF en utilisant directement l'API AppSheet plutôt qu'en accédant à Google Sheets. Cette approche offre plusieurs avantages :
+
+- Compatible avec **toutes les sources de données** d'AppSheet (pas seulement Google Sheets)
+- Meilleure performance pour les grands volumes de données
+- Cohérence avec l'état actuel des données dans AppSheet
+
+#### Configuration de l'API AppSheet
+
+1. **Activer l'API AppSheet** :
+   - Dans l'éditeur AppSheet, allez dans `Settings` > `Integrations` > `In`
+   - Activez l'option `Enable API`
+   - Notez votre **Application ID** et générez une **clé d'accès API** (Access Key)
+
+#### Arguments de la fonction (9 arguments)
+
+Pour appeler cette fonction depuis AppSheet, configurez un Bot avec les arguments suivants :
+
+1. **Argument 1 : `uniqueId`**
+   - **Description :** L'ID unique de l'enregistrement à traiter.
+   - **Valeur AppSheet :** `[VotreColonneCleUnique]` (Sans guillemets)
+
+2. **Argument 2 : `appsheetAppId`**
+   - **Description :** L'ID de l'application AppSheet.
+   - **Valeur AppSheet :** `"ID_DE_VOTRE_APPLICATION_APPSHEET"` (Avec guillemets doubles)
+
+3. **Argument 3 : `appsheetAccessKey`**
+   - **Description :** Clé d'accès API AppSheet.
+   - **Valeur AppSheet :** `"VOTRE_CLE_ACCES_API"` (Avec guillemets doubles)
+
+4. **Argument 4 : `tableName`**
+   - **Description :** Nom de la table AppSheet.
+   - **Valeur AppSheet :** `"NomDeVotreTable"` (Avec guillemets doubles)
+
+5. **Argument 5 : `templateDocId`**
+   - **Description :** L'ID du modèle Google Docs.
+   - **Valeur AppSheet :** `"ID_DE_VOTRE_MODELE_DOC"` (Avec guillemets doubles)
+
+6. **Argument 6 : `destinationFolderId`**
+   - **Description :** L'ID du dossier Google Drive de destination.
+   - **Valeur AppSheet :** `"ID_DE_VOTRE_DOSSIER_DRIVE"` (Avec guillemets doubles)
+
+7. **Argument 7 : `uniqueIdColumnName`**
+   - **Description :** Nom de la colonne contenant l'ID unique dans la table AppSheet.
+   - **Valeur AppSheet :** `"NomColonneIDUniqueAppSheet"` (Avec guillemets doubles)
+
+8. **Argument 8 : `pdfFilenameTemplate`**
+   - **Description :** Modèle pour nommer le fichier PDF.
+   - **Valeur AppSheet :** `"Commande-{{ID}}-{{Client}}.pdf"` (Avec guillemets doubles)
+
+9. **Argument 9 : `deleteTempDocStr`**
+   - **Description :** Supprimer le Doc temporaire (`"true"`) ou le garder (`"false"`).
+   - **Valeur AppSheet :** `"false"` ou `"true"` (Avec guillemets doubles)
+
+**Récapitulatif Visuel des 9 Arguments pour l'API dans AppSheet :**
+
+```
+1: [VotreColonneCleUnique]
+2: "ID_APPLICATION_APPSHEET"
+3: "CLE_ACCES_API_APPSHEET"
+4: "NOM_TABLE_APPSHEET"
+5: "ID_MODELE_DOC"
+6: "ID_DOSSIER_DRIVE"
+7: "NOM_COLONNE_ID_UNIQUE_APPSHEET"
+8: "TEMPLATE_NOM_FICHIER_{{Col1}}.pdf"
+9: "false" (ou "true")
+```
+
+#### Différences par rapport à `generatePdfFromTemplate`
+
+| Paramètre | `generatePdfFromTemplate` | `generatePdfFromTemplateAPI_AppSheetUse` |
+|-----------|---------------------------|------------------------------------------|
+| Source de données | Google Sheets directement | API AppSheet |
+| Paramètre n°2 | ID du fichier Google Sheet | ID de l'application AppSheet |
+| Paramètre n°3 | ID du modèle Doc | Clé d'accès API AppSheet |
+| Paramètre n°4 | ID du dossier Drive | Nom de la table AppSheet |
+| Mise à jour URL PDF | Directement dans Sheet | Non disponible |
+
+#### Considérations importantes
+
+- Vérifiez que l'API est activée pour votre application AppSheet.
+- Stockez la clé d'accès API de manière sécurisée.
+- Les noms des colonnes doivent correspondre exactement avec ceux d'AppSheet.
+- Les placeholders dans le modèle Google Docs doivent correspondre aux noms des colonnes dans AppSheet.
