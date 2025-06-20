@@ -1,4 +1,7 @@
-// Version: 3.5 (Autonome, 9 paramètres, API AppSheet ou Google Sheets, Utilise getDisplayValues, Remplacement string simple, Logs+, Sécurisé)
+// Version: 3.4.1
+// Date: 2025-06-20 11:00
+// Author: Rolland MELET
+// Description: Correction d'une erreur de duplication de code qui rendait le fichier invalide. Rétablissement de la structure correcte du script.
 
 /**
  * @OnlyCurrentDoc
@@ -160,7 +163,7 @@ function generatePdfFromTemplate( uniqueId, spreadsheetId, templateDocId, destin
  * @param {string} tableName Nom de la table AppSheet.
  * @param {string} uniqueIdColumnName Nom de la colonne ID unique dans AppSheet.
  * @param {string} uniqueId Valeur de l'ID unique à rechercher.
- * @return {Object} Les données de l'enregistrement trouvé et l'index si mise à jour nécessaire.
+ * @return {Object} Les données de l'enregistrement trouvé.
  * @throws {Error} Si la requête échoue ou si l'enregistrement n'est pas trouvé.
  */
 function fetchDataFromAppSheetAPI(appId, accessKey, tableName, uniqueIdColumnName, uniqueId) {
@@ -170,28 +173,13 @@ function fetchDataFromAppSheetAPI(appId, accessKey, tableName, uniqueIdColumnNam
     const apiUrl = `https://api.appsheet.com/api/v2/apps/${appId}/tables/${tableName}/Action`;
     Logger.log(`URL API: ${apiUrl}`);
     
-    // Construction du corps de la requête plus détaillé
+    // Construction du corps de la requête avec filtre sur l'ID unique
     const requestBody = {
         Action: "Find",
         Properties: {
-            MaxRecords: 10,
-            Select: ["*"], // Demander explicitement toutes les colonnes
-            Locale: "fr-FR",
-            RequestTimeOut: 30
+            Filter: `${uniqueIdColumnName} = '${uniqueId}'`
         }
     };
-    
-    // Ajout du filtre seulement si on a une colonne et une valeur
-    if (uniqueIdColumnName && uniqueIdColumnName.trim() !== '' && 
-        uniqueId && uniqueId.trim() !== '') {
-        requestBody.Properties.Filter = `${uniqueIdColumnName} = '${uniqueId}'`;
-    } else {
-        // Si pas de filtre, limiter à 1 enregistrement pour tester la connexion
-        requestBody.Properties.MaxRecords = 1;
-    }
-    
-    // Afficher la requête pour le débogage
-    Logger.log(`Requête API: ${JSON.stringify(requestBody)}`);
     
     // Configuration de la requête HTTP
     const options = {
@@ -220,73 +208,22 @@ function fetchDataFromAppSheetAPI(appId, accessKey, tableName, uniqueIdColumnNam
             throw new Error(`Erreur API AppSheet (${responseCode}): ${responseText}`);
         }
         
-        // Vérification plus robuste de la réponse
-        if (!responseText || responseText.trim() === '' || responseText === '[]' || responseText === '{}') {
-            Logger.log(`Réponse API AppSheet vide ou invalide (content-length: ${responseText.length}). Détails: ${responseText}`);
-            
-            // Tester une requête plus simple pour diagnostiquer le problème
-            const testUrl = `https://api.appsheet.com/api/v2/apps/${appId}/tables/${tableName}/Action`;
-            const testOptions = {
-                method: 'post',
-                contentType: 'application/json',
-                headers: {
-                    'ApplicationAccessKey': accessKey
-                },
-                payload: JSON.stringify({
-                    Action: "Get",
-                    Properties: {
-                        Select: ["*"],
-                        MaxRecords: 1
-                    }
-                }),
-                muteHttpExceptions: true
-            };
-            
-            try {
-                const testResponse = UrlFetchApp.fetch(testUrl, testOptions);
-                const testText = testResponse.getContentText();
-                Logger.log(`Test API simple - Code: ${testResponse.getResponseCode()}, Réponse: ${testText}`);
-                
-                if (!testText || testText.trim() === '') {
-                    throw new Error('La requête test simple a également retourné une réponse vide. Vérifiez les permissions API.');
-                }
-            } catch (testError) {
-                Logger.log(`ERREUR lors du test API simple: ${testError.message}`);
-                throw new Error(`L'API AppSheet retourne des réponses vides. Vérifiez: 1) La clé API est valide 2) L'application a bien la table '${tableName}' 3) La clé API a les permissions 'Read' sur cette table. Détails: ${testError.message}`);
-            }
-            
-            throw new Error('Réponse API AppSheet vide malgré requête test réussie. Structure de données potentiellement différente.');
-        }
+        // Parsing de la réponse JSON
+        const responseData = JSON.parse(responseText);
+        Logger.log(`Réponse API AppSheet parsée: ${JSON.stringify(responseData).substring(0, 200)}...`);
         
-        // Affichage du début de la réponse brute pour le débogage
-        Logger.log(`Réponse brute (début): ${responseText.substring(0, Math.min(responseText.length, 200))}...`);
-        
-        // Déclaration en dehors du bloc try
-        let responseData;
-        let recordData = null;
-        
-        try {
-            // Parsing de la réponse JSON
-            responseData = JSON.parse(responseText);
-            Logger.log(`Réponse API AppSheet parsée: ${JSON.stringify(responseData).substring(0, 200)}...`);
-            
-            // Extraction des données de l'enregistrement
-            if (Array.isArray(responseData)) {
-                // Format tableau direct
-                recordData = responseData.length > 0 ? responseData[0] : null;
-            } else if (responseData.Rows && Array.isArray(responseData.Rows)) {
-                // Format avec Rows et Properties
-                recordData = responseData.Rows.length > 0 ? responseData.Rows[0] : null;
-            } else {
-                // Format non reconnu
-                Logger.log(`Format de réponse API non reconnu: ${responseText.substring(0, 200)}...`);
-                throw new Error('Format de réponse API AppSheet non reconnu');
-            }
-        } catch (parseError) {
-            // Erreur lors du parsing JSON
-            Logger.log(`Erreur de parsing JSON: ${parseError.message}`);
-            Logger.log(`Réponse brute complète: ${responseText}`);
-            throw new Error(`Erreur de parsing de la réponse API: ${parseError.message}`);
+        // Extraction des données de l'enregistrement
+        let recordData;
+        if (Array.isArray(responseData)) {
+            // Format tableau direct
+            recordData = responseData.length > 0 ? responseData[0] : null;
+        } else if (responseData.Rows && Array.isArray(responseData.Rows)) {
+            // Format avec Rows et Properties
+            recordData = responseData.Rows.length > 0 ? responseData.Rows[0] : null;
+        } else {
+            // Format non reconnu
+            Logger.log(`Format de réponse API non reconnu: ${responseText.substring(0, 200)}...`);
+            throw new Error('Format de réponse API AppSheet non reconnu');
         }
         
         // Vérification qu'un enregistrement a été trouvé
@@ -358,26 +295,27 @@ function generatePdfFromTemplateAPI_AppSheetUse(uniqueId, appsheetAppId, appshee
 
         // 1. Récupérer les données via l'API AppSheet
         Logger.log(`Récupération des données pour ID ${uniqueId} depuis l'API AppSheet...`);
-        const recordData = fetchDataFromAppSheetAPI(appsheetAppId, appsheetAccessKey, tableName, uniqueIdColumnName, uniqueId);
+        const recordDataResult = fetchDataFromAppSheetAPI(appsheetAppId, appsheetAccessKey, tableName, uniqueIdColumnName, uniqueId);
         
-        if (!recordData || !recordData.data) {
+        if (!recordDataResult || !recordDataResult.data) {
             throw new Error(`Aucune donnée récupérée pour l'ID ${uniqueId}.`);
         }
         
+        const recordData = recordDataResult.data;
         Logger.log(`Données récupérées avec succès pour ID ${uniqueId}.`);
 
         // 2. Préparer les placeholders
         const placeholders = {};
-        for (const key in recordData.data) {
-            if (Object.prototype.hasOwnProperty.call(recordData.data, key)) {
+        for (const key in recordData) {
+            if (Object.prototype.hasOwnProperty.call(recordData, key)) {
                 // Le format API est déjà { "nom": "valeur" }, nous voulons { "{{nom}}": "valeur" }
-                placeholders[`{{${key}}}`] = recordData.data[key];
+                placeholders[`{{${key}}}`] = recordData[key];
             }
         }
 
         // ===> LOGS POUR DÉBOGAGE <===
         try { 
-            Logger.log(`Données récupérées: ${JSON.stringify(recordData.data)}`); 
+            Logger.log(`Données récupérées: ${JSON.stringify(recordData)}`); 
             Logger.log(`Placeholders créés: ${JSON.stringify(placeholders, null, 2)}`); 
         } catch (logError) { 
             Logger.log(`AVERTISSEMENT log JSON: ${logError}`); 
@@ -528,4 +466,3 @@ function generatePdfFromTemplateAPI_AppSheetUse(uniqueId, appsheetAppId, appshee
 // Fonction de test pour forcer la demande d'autorisation (si nécessaire)
 // ==========================================================================
 function testAutorisationsNecesaires() { let testResult = ''; try { const testSheetId = "METTRE_ICI_UN_ID_DE_FICHIER_SHEET_VALIDE"; const ss = SpreadsheetApp.openById(testSheetId); testResult += `Accès Sheet (${testSheetId}) OK. Nom: ${ss.getName()}\n`; const testDocId = "METTRE_ICI_UN_ID_DE_FICHIER_DOC_VALIDE"; const doc = DocumentApp.openById(testDocId); testResult += `Accès Doc (${testDocId}) OK. Nom: ${doc.getName()}\n`; const testFolderId = "METTRE_ICI_UN_ID_DE_DOSSIER_DRIVE_VALIDE"; const folder = DriveApp.getFolderById(testFolderId); testResult += `Accès Folder (${testFolderId}) OK. Nom: ${folder.getName()}\n`; const tempFileName = `_test_autorisation_${new Date().getTime()}.txt`; const tempFile = folder.createFile(tempFileName, 'Test autorisation Drive'); const tempFileId = tempFile.getId(); testResult += `Création fichier test (${tempFileName}) OK.\n`; DriveApp.getFileById(tempFileId).setTrashed(true); testResult += `Suppression fichier test OK.\n`; Logger.log("Test autorisations OK :\n" + testResult); SpreadsheetApp.getUi().alert("Test Autorisations", "OK:\n" + testResult, SpreadsheetApp.getUi().ButtonSet.OK); } catch (e) { Logger.log(`ERREUR Test autorisations : ${e}\n${e.stack}`); SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(`<pre>${e.stack}</pre>`), `Erreur Test: ${e.message}`); throw new Error(`ERREUR test autorisations: ${e.message}`); } }
-// ==========================================================================
